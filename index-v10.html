@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Buildings Image Inpainting</title>
+	<!-- 使用 .ico 格式 -->
+	<link rel="icon" href="favicon.ico" type="image/x-icon" />
+	<!-- 使用 .png 格式 -->
+	<link rel="icon" href="logo4.png" type="image/png" />
+
+    <!-- 引入 Bootstrap -->
+	<!-- Bootstrap CSS -->
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+
+	<!-- Bootstrap JavaScript -->
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+    <style>
+		#mainImageContainer {
+			border: 2px solid #ddd;
+			padding: 10px;
+			background-color: #f9f9f9;
+			border-radius: 5px;
+		}
+
+		#thumbnailContainer img {
+			transition: transform 0.2s ease;
+		}
+
+		#thumbnailContainer img:hover {
+			transform: scale(1.1);
+			box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+		}
+
+        canvas {
+            border: 1px solid black;
+            cursor: crosshair;
+            max-width: 100%;
+        }
+		#resultImages img {
+			margin: 10px;
+			width: calc(33% - 20px); /* 每行显示 5 张图片，间距计算 */
+			height: auto;
+			border-radius: 5px;
+			box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+			object-fit: cover;
+		}
+
+        .tooltip-container {
+            position: relative;
+            display: inline-block;
+        }
+        .tooltip-container .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: #555;
+            color: #fff;
+            text-align: left;
+            padding: 10px;
+            border-radius: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+        }
+        .tooltip-container:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+		
+		.loading-overlay {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(255, 255, 255, 0.8); /* 半透明背景 */
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			border-radius: 5px;
+			z-index: 10; /* 确保覆盖在其他内容之上 */
+		}
+
+		.loading-overlay::after {
+			content: "";
+			width: 30px;
+			height: 30px;
+			border: 4px solid rgba(0, 0, 0, 0.2);
+			border-top-color: #007bff; /* 蓝色加载动画 */
+			border-radius: 50%;
+			animation: spin 1s linear infinite;
+		}
+
+		@keyframes spin {
+			from {
+				transform: rotate(0deg);
+			}
+			to {
+				transform: rotate(360deg);
+			}
+		}
+
+		
+		.header {
+			text-align: center;
+			padding: 20px 10px;
+			border-radius: 8px;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			position: relative;
+		}
+
+		.header img {
+			height: 60px;
+			margin-right: 15px;
+		}
+
+		.header h1 {
+			font-size: 2rem;
+			margin: 0;
+			font-weight: 700;
+		}
+
+		/* 调整进度条颜色 */
+		input[type="range"]::-webkit-slider-thumb {
+			background-color: #007bff; /* 调整滑块颜色（蓝色） */
+			border: none;
+			border-radius: 50%;
+			width: 20px;
+			height: 20px;
+			cursor: pointer;
+			box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+		}
+
+		input[type="range"]::-webkit-slider-runnable-track {
+			background: linear-gradient(to right, #007bff, #ff6b6b); /* 渐变效果 */
+			border-radius: 10px;
+			height: 6px;
+		}
+
+		input[type="range"]:focus {
+			outline: none; /* 去掉聚焦时的默认边框 */
+		}
+
+		input[type="range"]::-moz-range-thumb {
+			background-color: #007bff; /* 滑块颜色（Firefox） */
+			border: none;
+			border-radius: 50%;
+			width: 20px;
+			height: 20px;
+			cursor: pointer;
+		}
+
+		input[type="range"]::-moz-range-track {
+			background: linear-gradient(to right, #007bff, #ff6b6b); /* 渐变效果（Firefox） */
+			border-radius: 10px;
+			height: 6px;
+		}
+
+		input[type="range"]::-ms-thumb {
+			background-color: #007bff; /* 滑块颜色（IE） */
+			border: none;
+			border-radius: 50%;
+			width: 20px;
+			height: 20px;
+			cursor: pointer;
+		}
+
+		input[type="range"]::-ms-track {
+			background: transparent;
+			border-color: transparent;
+			border-width: 6px 0;
+			color: transparent;
+		}
+
+		input[type="range"]::-ms-fill-lower {
+			background: #007bff;
+			border-radius: 10px;
+		}
+
+		input[type="range"]::-ms-fill-upper {
+			background: #ff6b6b;
+			border-radius: 10px;
+		}
+
+
+    </style>
+</head>
+<body>
+
+<div class="container my-4">
+	
+	<div class="header">
+		<img src="logo4.png" alt="Logo" />
+		<h1>AI Buildings Image Inpainting</h1>
+	</div>
+
+	<p></p>
+	
+    <div class="row">
+        <!-- 左侧：原图和输入选项 -->
+        <div class="col-lg-6 col-md-12">
+            <!-- Image Upload -->
+            <div class="mb-3">
+                <label class="form-label">Upload Image:</label>
+                <input type="file" id="uploadImage" accept="image/*" class="form-control">
+            </div>
+			
+            <!-- Canvas -->
+            <div class="mb-3">
+                <canvas id="canvas" width="512" height="512"></canvas>
+            </div>
+
+            <!-- Drawing Mode -->
+            <div class="mb-3">
+                <label class="form-label">Drawing Mode:</label>
+                <div>
+                    <input type="radio" id="brushMode" name="mode" value="brush" checked>
+                    <label for="brushMode">Brush</label>
+                    <input type="radio" id="rectangleMode" name="mode" value="rectangle">
+                    <label for="rectangleMode">Rectangle</label>
+                </div>
+            </div>
+
+            <!-- Brush Size -->
+            <div class="mb-3">
+                <label class="form-label">Brush Size:</label>
+                <div class="tooltip-container">
+                    <input type="range" id="brushSize" min="1" max="50" value="10" class="form-range">
+                    <span id="brushSizeValue">10</span>
+                    <span class="tooltiptext">Adjust the brush size for drawing.</span>
+                </div>
+            </div>
+
+            <!-- Parameters -->
+            <div class="mb-3">
+                <label class="form-label">Number of Images:</label>
+                <div class="tooltip-container">
+                    <input type="range" id="numImages" min="1" max="10" value="3" class="form-range">
+                    <span id="numImagesValue">3</span>
+                    <span class="tooltiptext">Set how many images to generate at once.</span>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Inference Steps:</label>
+                <div class="tooltip-container">
+                    <input type="range" id="numInferenceSteps" min="1" max="50" value="20" class="form-range">
+                    <span id="numInferenceStepsValue">20</span>
+                    <span class="tooltiptext">Control the quality and speed of generation.</span>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Guidance Scale:</label>
+                <div class="tooltip-container">
+                    <input type="range" id="guidanceScale" min="1.0" max="20.0" step="0.5" value="7.5" class="form-range">
+                    <span id="guidanceScaleValue">7.5</span>
+                    <span class="tooltiptext">Adjust how closely the result follows the description.</span>
+                </div>
+            </div>
+
+            <!-- Description -->
+			<div class="mb-3">
+				<label for="description" class="form-label">Description:</label>
+				<textarea id="description" placeholder="Enter a detailed description of the image content or the style you'd like to apply (e.g., 'A futuristic cyberpunk cityscape with neon lights.')" class="form-control"></textarea>
+				<small class="form-text text-muted">
+					Provide a detailed description to guide the AI. The more details, the better it works.
+				</small>
+			</div>
+
+
+            <!-- Buttons -->
+            <div class="d-flex justify-content-between">
+                <button id="generateButton" class="btn btn-primary">Generate</button>
+                <button id="clearButton" class="btn btn-secondary">Clear</button>
+            </div>
+        </div>
+
+		<!-- 右侧：生成结果 -->
+		<div class="col-lg-6 col-md-12">
+			<h4>Results:</h4>
+
+			<!-- 大图展示区域 -->
+			<div id="mainImageContainer" class="mb-3 text-center position-relative">
+				<img id="mainImage" src="placeholder.jpg" alt="Main Image" class="img-fluid rounded shadow" style="max-height: 400px;" />
+				<div id="mainImageLoading" class="loading-overlay" style="display: none;"></div>
+			</div>
+
+			<!-- 缩略图列表 -->
+			<div id="thumbnailContainer" class="row g-2 position-relative">
+				<div id="thumbnailLoading" class="loading-overlay" style="display: none;"></div>
+				<!-- 缩略图占位符 -->
+				<div class="col-4">
+					<img src="placeholder-thumbnail.jpg" alt="Placeholder Thumbnail" class="img-thumbnail" style="width: 100%; object-fit: cover;" />
+				</div>
+				<div class="col-4">
+					<img src="placeholder-thumbnail.jpg" alt="Placeholder Thumbnail" class="img-thumbnail" style="width: 100%; object-fit: cover;" />
+				</div>
+				<div class="col-4">
+					<img src="placeholder-thumbnail.jpg" alt="Placeholder Thumbnail" class="img-thumbnail" style="width: 100%; object-fit: cover;" />
+				</div>
+			</div>
+
+
+			<!-- Loading 提示 -->
+			<div id="loading" class="text-center text-primary my-3" style="display: none;">Generating... Please wait.</div>
+			
+			<!-- 风格迁移按钮 -->
+			<div class="d-flex justify-content-center my-3">
+				<button id="styleTransferButton" class="btn btn-success" disabled>Apply Style Transfer</button>
+			</div>
+
+		</div>
+
+    </div>
+</div>
+
+<!-- 风格迁移弹窗 -->
+<div class="modal fade" id="styleTransferModal" tabindex="-1" aria-labelledby="styleTransferModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="styleTransferModalLabel">Style Transfer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6>Select a Style:</h6>
+                <select id="styleSelector" class="form-select mb-3">
+                    <option value="watercolor">Watercolor</option>
+                    <option value="sketch">Architectural Sketch</option>
+                    <option value="cyberpunk">Cyberpunk</option>
+                    <option value="pixel_art">Pixel Art</option>
+                </select>
+                <h6>Parameters:</h6>
+				
+                <div class="mb-3" id="dynamicParameters">
+					<!-- 动态加载的参数滑块 -->
+				</div>
+
+                <div class="text-center">
+                    <button id="applyStyleButton" class="btn btn-primary">Apply Style</button>
+                </div>
+                <div class="text-center mt-3">
+                    <img id="styledPreview" src="" alt="Styled Preview" class="img-fluid rounded shadow" style="max-height: 400px; display: none;">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    const canvas = document.getElementById("canvas");
+	const ctx = canvas.getContext("2d");
+
+	// 新增遮罩画布
+	const maskCanvas = document.createElement("canvas");
+	const maskCtx = maskCanvas.getContext("2d");
+	maskCanvas.width = canvas.width;
+	maskCanvas.height = canvas.height;
+
+	// 初始化遮罩画布为黑色（无遮罩区域）
+	maskCtx.fillStyle = "black";
+	maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+
+    const uploadImage = document.getElementById("uploadImage");
+    const brushSizeInput = document.getElementById("brushSize");
+    const numImagesInput = document.getElementById("numImages");
+    const numInferenceStepsInput = document.getElementById("numInferenceSteps");
+    const guidanceScaleInput = document.getElementById("guidanceScale");
+    const brushSizeValue = document.getElementById("brushSizeValue");
+    const numImagesValue = document.getElementById("numImagesValue");
+    const numInferenceStepsValue = document.getElementById("numInferenceStepsValue");
+    const guidanceScaleValue = document.getElementById("guidanceScaleValue");
+    const clearButton = document.getElementById("clearButton");
+    const loadingText = document.getElementById("loading");
+    const resultImagesDiv = document.getElementById("resultImages");
+    let drawing = false;
+	let selectedImageBase64 = null;
+	
+	const stylesParameters = {
+		watercolor: [
+			{ id: "colorSaturation", label: "Color Saturation", min: 1, max: 3, step: 0.1, default: 1.5 },
+			{ id: "contrast", label: "Contrast", min: 1, max: 3, step: 0.1, default: 1.2 }
+		],
+		sketch: [
+			{ id: "blurIntensity", label: "Blur Intensity", min: 1, max: 10, step: 1, default: 5 },
+			{ id: "edgeThreshold", label: "Edge Threshold", min: 10, max: 150, step: 10, default: 50 }
+		],
+		pixel_art: [
+			{ id: "pixelSize", label: "Pixel Size", min: 2, max: 20, step: 1, default: 5 },
+			{ id: "colorPaletteSize", label: "Color Palette Size", min: 4, max: 64, step: 4, default: 16 }
+		],
+		cyberpunk: [
+		]
+
+	};
+
+    let image = null;
+    let startX, startY;
+
+    // Update slider value display
+    const updateSliderValue = (slider, valueDisplay) => {
+        slider.addEventListener("input", () => {
+            valueDisplay.textContent = slider.value;
+        });
+    };
+
+    updateSliderValue(brushSizeInput, brushSizeValue);
+    updateSliderValue(numImagesInput, numImagesValue);
+    updateSliderValue(numInferenceStepsInput, numInferenceStepsValue);
+    updateSliderValue(guidanceScaleInput, guidanceScaleValue);
+
+	
+	const styleTransferButton = document.getElementById("styleTransferButton");
+	styleTransferButton.addEventListener("click", () => {
+		const modal = new bootstrap.Modal(document.getElementById("styleTransferModal"));
+		modal.show();
+	});
+	
+	// 获取风格选择器的元素
+	document.getElementById("styleSelector").addEventListener("change", (event) => {
+		const selectedStyle = event.target.value;
+
+		// 在这里添加动态参数生成代码
+		const dynamicParameters = document.getElementById("dynamicParameters");
+
+		// 清空动态参数区域
+		dynamicParameters.innerHTML = "";
+
+		// 如果当前风格有参数，动态生成控件
+		if (stylesParameters[selectedStyle]) {
+			stylesParameters[selectedStyle].forEach(param => {
+				const paramDiv = document.createElement("div");
+				paramDiv.className = "mb-3";
+				
+				paramDiv.innerHTML = `
+					<label for="${param.id}" class="form-label">${param.label}:</label>
+					<input 
+						type="range" 
+						id="${param.id}" 
+						class="form-range" 
+						min="${param.min}" 
+						max="${param.max}" 
+						step="${param.step}" 
+						value="${param.default}" 
+						data-param-name="${param.id}">
+					<span id="${param.id}Value">${param.default}</span>
+				`;
+
+
+				dynamicParameters.appendChild(paramDiv);
+
+				// 添加动态显示值更新的事件
+				const rangeInput = paramDiv.querySelector(`#${param.id}`);
+				const valueSpan = paramDiv.querySelector(`#${param.id}Value`);
+				rangeInput.addEventListener("input", () => {
+					valueSpan.textContent = rangeInput.value;
+				});
+			});
+		}
+	});
+
+
+	const applyStyleButton = document.getElementById("applyStyleButton");
+	const styledPreview = document.getElementById("styledPreview");
+	applyStyleButton.addEventListener("click", async () => {
+		const selectedStyle = document.getElementById("styleSelector").value;
+
+		// 动态参数容器
+		const dynamicParameters = document.getElementById("dynamicParameters");
+		const parameters = {};
+
+		// 动态获取参数值
+		dynamicParameters.querySelectorAll("input[type='range']").forEach((slider) => {
+			const paramName = slider.getAttribute("id"); // 使用滑块的 `id` 作为参数名
+			parameters[paramName] = parseFloat(slider.value); // 将值转换为浮点数或整数
+		});
+
+		if (!selectedImageBase64) {
+			alert("No image selected for style transfer.");
+			return;
+		}
+
+		const payload = {
+			image: selectedImageBase64,
+			style: selectedStyle,
+			intensity: 1, // 示例的全局参数，可根据需求动态调整
+			parameters: parameters, // 发送动态参数到后端
+		};
+
+		try {
+			const response = await fetch("https://0017-35-204-180-151.ngrok-free.app/style_transfer", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify(payload),
+			});
+			const data = await response.json();
+
+			if (data.styled_image) {
+				styledPreview.src = `data:image/png;base64,${data.styled_image}`;
+				styledPreview.style.display = "block";
+			} else {
+				alert("Failed to apply style: No styled image returned.");
+			}
+		} catch (error) {
+			alert("Error occurred while applying style.");
+			console.error(error);
+		}
+	});
+
+
+
+
+
+
+
+    // Upload image to canvas
+    uploadImage.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            image = new Image();
+            image.onload = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+            };
+            image.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // 在遮罩画布上绘制
+	const drawBrushOnMask = (x, y) => {
+		const size = parseInt(brushSizeInput.value, 10);
+		maskCtx.fillStyle = "white"; // 白色表示需要修补的区域
+		maskCtx.beginPath();
+		maskCtx.arc(x, y, size / 2, 0, Math.PI * 2);
+		maskCtx.fill();
+	};
+
+	// 在主画布上实时显示遮罩
+	const overlayMaskOnCanvas = () => {
+		ctx.clearRect(0, 0, canvas.width, canvas.height);
+		ctx.drawImage(image, 0, 0, canvas.width, canvas.height); // 绘制原始图像
+		ctx.globalAlpha = 0.5; // 半透明显示遮罩
+		ctx.drawImage(maskCanvas, 0, 0); // 绘制遮罩层
+		ctx.globalAlpha = 1.0; // 恢复透明度
+	};
+
+    const drawRectangle = (x, y, width, height) => {
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = "white";
+        ctx.fillRect(x, y, width, height);
+        ctx.globalAlpha = 1.0;
+    };
+
+    // 开始绘制
+	canvas.addEventListener("mousedown", (e) => {
+		const rect = canvas.getBoundingClientRect();
+		const x = e.clientX - rect.left;
+		const y = e.clientY - rect.top;
+
+		if (document.querySelector('input[name="mode"]:checked').value === "brush") {
+			drawBrushOnMask(x, y);
+		} else {
+			startX = x;
+			startY = y;
+		}
+		drawing = true;
+		overlayMaskOnCanvas(); // 实时显示遮罩效果
+	});
+
+	// 继续绘制
+	canvas.addEventListener("mousemove", (e) => {
+		if (!drawing) return;
+		const rect = canvas.getBoundingClientRect();
+		const x = e.clientX - rect.left;
+		const y = e.clientY - rect.top;
+
+		if (document.querySelector('input[name="mode"]:checked').value === "brush") {
+			drawBrushOnMask(x, y);
+		}
+		overlayMaskOnCanvas();
+	});
+
+	// 结束绘制
+	canvas.addEventListener("mouseup", (e) => {
+		if (!drawing) return;
+		const rect = canvas.getBoundingClientRect();
+		const x = e.clientX - rect.left;
+		const y = e.clientY - rect.top;
+
+		if (document.querySelector('input[name="mode"]:checked').value === "rectangle") {
+			const width = x - startX;
+			const height = y - startY;
+			maskCtx.fillStyle = "white";
+			maskCtx.fillRect(startX, startY, width, height);
+		}
+		drawing = false;
+		overlayMaskOnCanvas();
+	});
+
+
+    // Clear button
+    clearButton.addEventListener("click", () => {
+		ctx.clearRect(0, 0, canvas.width, canvas.height);
+		maskCtx.fillStyle = "black"; // 重新初始化遮罩
+		maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+		if (image) ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+	});
+
+
+    // Prepare mask for backend
+    
+	const prepareMask = () => {
+		return new Promise((resolve) => {
+			const tempCanvas = document.createElement("canvas");
+			const tempCtx = tempCanvas.getContext("2d");
+			tempCanvas.width = maskCanvas.width;
+			tempCanvas.height = maskCanvas.height;
+
+			// 设置背景为透明
+			tempCtx.fillStyle = "rgba(0, 0, 0, 0)";
+			tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+			// 绘制遮罩的白色部分
+			tempCtx.drawImage(maskCanvas, 0, 0);
+			tempCanvas.toBlob(resolve, "image/png");
+		});
+	};
+	
+	const prepareOriginalImage = () => {
+		return new Promise((resolve) => {
+			const tempCanvas = document.createElement("canvas");
+			const tempCtx = tempCanvas.getContext("2d");
+			tempCanvas.width = canvas.width;
+			tempCanvas.height = canvas.height;
+
+			// 将原始图像绘制到临时画布上
+			if (image) {
+				tempCtx.drawImage(image, 0, 0, tempCanvas.width, tempCanvas.height);
+			}
+			tempCanvas.toBlob(resolve, "image/png");
+		});
+	};
+
+	
+
+
+	// Generate button
+	document.getElementById("generateButton").addEventListener("click", async () => {
+		if (!image) {
+			alert("Please upload an image.");
+			return;
+		}
+		const description = document.getElementById("description").value.trim();
+		if (!description) {
+			alert("Please enter a description.");
+			return;
+		}
+
+		// 显示加载文字
+		loadingText.style.display = "block";
+
+		// 清空缩略图并显示占位符
+		const mainImage = document.getElementById("mainImage");
+		const thumbnailContainer = document.getElementById("thumbnailContainer");
+
+		// 设置主图占位符
+		mainImage.src = "placeholder.jpg"; // 替换为主图占位符路径
+		thumbnailContainer.innerHTML = ""; // 清空缩略图
+		
+		for (let i = 0; i < 3; i++) {
+			const placeholderDiv = document.createElement("div");
+			placeholderDiv.className = "col-4 placeholder-thumbnail-container"; // 添加类名以便样式控制
+
+			// 创建占位图
+			const placeholderImg = document.createElement("img");
+			placeholderImg.src = "placeholder-thumbnail.jpg"; // 缩略图占位符
+			placeholderImg.alt = "Placeholder Thumbnail";
+			placeholderImg.className = "img-thumbnail";
+			placeholderImg.style.width = "100%";
+			placeholderImg.style.objectFit = "cover";
+
+			// 创建加载动画覆盖层
+			const loadingOverlay = document.createElement("div");
+			loadingOverlay.className = "loading-overlay";
+
+			// 将加载动画和占位图添加到容器中
+			placeholderDiv.appendChild(placeholderImg);
+			placeholderDiv.appendChild(loadingOverlay);
+			thumbnailContainer.appendChild(placeholderDiv);
+		}
+
+		const maskBlob = await prepareMask();
+		const imageBlob = await prepareOriginalImage();
+		const formData = new FormData();
+		formData.append("image", imageBlob);
+		formData.append("mask", maskBlob);
+		formData.append("description", description);
+		formData.append("num_images", numImagesInput.value);
+		formData.append("num_inference_steps", numInferenceStepsInput.value);
+		formData.append("guidance_scale", guidanceScaleInput.value);
+
+		try {
+			const response = await fetch("https://0017-35-204-180-151.ngrok-free.app/generate", { method: "POST", body: formData });
+			const data = await response.json();
+
+			// 检查返回数据是否有图像
+			if (!data.images || data.images.length === 0) {
+				throw new Error("No images returned from server.");
+			}
+
+			// 清空缩略图区域
+			thumbnailContainer.innerHTML = "";
+
+			// 更新主图为第一张生成的图片
+			mainImage.src = `data:image/png;base64,${data.images[0]}`;
+
+			// 添加缩略图
+			const styleTransferButton = document.getElementById("styleTransferButton");
+			data.images.forEach((imgBase64, index) => {
+				const colDiv = document.createElement("div");
+				colDiv.className = "col-4"; // 每行显示 3 个缩略图
+				const img = document.createElement("img");
+				img.src = `data:image/png;base64,${imgBase64}`;
+				img.className = "img-thumbnail";
+				img.style.cursor = "pointer";
+
+				// 缩略图点击事件：切换主图
+				img.addEventListener("click", () => {
+					mainImage.src = img.src;
+
+					// 保存选中的图像 Base64 数据
+					selectedImageBase64 = img.src.split(",")[1];
+					console.log("Selected Image Base64:", selectedImageBase64);
+
+					// 启用风格迁移按钮
+					styleTransferButton.disabled = false;
+				});
+
+				colDiv.appendChild(img);
+				thumbnailContainer.appendChild(colDiv);
+			});
+
+			// 为风格迁移添加逻辑
+			styleTransferButton.addEventListener("click", () => {
+				if (selectedImageBase64) {
+					console.log("Selected Image for Style Transfer:", selectedImageBase64);
+
+					// 打开风格迁移弹窗
+					const modal = new bootstrap.Modal(document.getElementById("styleTransferModal"));
+					modal.show();
+
+					// 更新预览图片
+					styledPreview.src = `data:image/png;base64,${selectedImageBase64}`;
+					styledPreview.style.display = "block";
+				} else {
+					alert("Please select an image to apply style transfer.");
+				}
+			});
+		} catch (error) {
+			alert("Error occurred while generating images: " + error.message);
+			console.error(error);
+		} finally {
+			loadingText.style.display = "none";
+		}
+	});
+
+
+</script>
+
+</body>
+</html>
