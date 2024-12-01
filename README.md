@@ -1,87 +1,133 @@
-# AI-BII Project
+# AI+BII: Building Image Inpainting and Style Transfer
 
-## Overview
-Welcome to the **AI-BII** project! This repository contains tools and scripts designed for AI-driven data analysis and processing. Our project leverages cutting-edge technologies to streamline workflows and enhance functionality for specific use cases. 
-
-## Key Features
-- **AI-Powered Analysis:** Implements machine learning algorithms to perform various tasks efficiently.
-- **Customizable:** Allows for adjustments based on specific use case needs.
-- **Dynamic Link Setup:** Utilizes ngrok to expose local servers to the internet for ease of access.
-
-## Getting Started
-### Prerequisites
-Before running this project, ensure you have the following installed:
-- **Python 3.8+**
-- **pip** (Python package manager)
-
-Additionally, you'll need to install ngrok, which can be downloaded from [ngrok's official website](https://ngrok.com/download).
-
-### Installation
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/XiaoyuYuan19/AI-BII.git
-   cd AI-BII
-   ```
-
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-### Configuration
-#### Setting Up ngrok
-The project requires an ngrok-generated link for certain functionalities. Follow these steps to set it up:
-
-1. Start ngrok on your local machine:
-   ```bash
-   ngrok http 8000
-   ```
-   Replace `8000` with the port your application will run on.
-
-2. Note the **Forwarding** URL provided by ngrok (e.g., `https://abc123.ngrok.io`).
-
-3. Update the configuration file in the project (e.g., `config.py` or a similar file as defined in the project files). Replace the placeholder link with your ngrok URL:
-   ```python
-   NGROK_URL = "https://abc123.ngrok.io"
-   ```
-   Ensure this matches the forwarding URL exactly.
-
-## How to Use
-1. Run the main script:
-   ```bash
-   python main.py
-   ```
-
-2. Open your browser and navigate to the ngrok URL to access the application.
-
-3. Follow the on-screen instructions to interact with the tool.
-
-## Project Structure
-- **`main.py`**: Entry point of the application.
-- **`config.py`**: Configuration settings, including dynamic ngrok URL.
-- **`modules/`**: Contains various modules and utilities for data processing and AI functionality.
-- **`requirements.txt`**: List of required Python packages.
-- **`README.md`**: Documentation and setup instructions (this file).
-
-## Troubleshooting
-- **Problem:** Application not accessible via ngrok link.
-  - **Solution:** Ensure ngrok is running, and the forwarding URL matches the `NGROK_URL` in `config.py`.
-
-- **Problem:** Missing dependencies.
-  - **Solution:** Run `pip install -r requirements.txt` to ensure all dependencies are installed.
-
-## Contribution Guidelines
-We welcome contributions to improve this project. Please follow these steps to contribute:
-1. Fork the repository.
-2. Create a new branch for your feature or bug fix.
-3. Submit a pull request with a detailed description of your changes.
-
-## License
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-Thank you for using AI-BII! We hope it enhances your projects and workflows. If you encounter issues or have suggestions, feel free to open an issue or reach out.
+**AI+BII** is an innovative project that leverages generative AI (GenAI) to restore images of historical buildings. It allows users to explore how damaged structures might have looked in their original, intact form. Additionally, the platform provides customizable style transfer options, enabling users to experiment with various artistic effects.
 
 ---
 
-**Important:** Remember to update the ngrok URL every time you restart ngrok, as it generates a new URL each time.
+## Features
+
+1. **Building Restoration**  
+   - Restore damaged building images using AI-powered inpainting.
+   - Leverages the `stabilityai/stable-diffusion-2-inpainting` model for precise and realistic results.
+
+2. **Style Transfer**  
+   - Apply artistic styles to the restored images. Current supported styles include:
+     - Watercolor
+     - Architectural Sketch
+     - Pixel Art
+     - Cyberpunk
+
+3. **Dynamic Parameter Adjustment**  
+   - Users can adjust parameters like color saturation, contrast, and pixel size to customize results.
+
+---
+
+## File Overview
+
+- **`app.py`**  
+  A Flask-based backend implementation that handles image restoration and style transfer requests. This script is designed to run on Google Colab.
+
+- **`index-v10.html`**  
+  The frontend interface where users can upload images, input descriptions, and view results.
+
+---
+
+## Prerequisites
+
+1. **Python Environment**  
+   Ensure you have Python 3.8 or above installed locally or access to Google Colab.
+
+2. **Ngrok Installation**  
+   Download and install [Ngrok](https://ngrok.com/), and set up your authentication token.
+
+3. **Frontend Browser Support**  
+   A modern browser to interact with the frontend HTML file.
+
+---
+
+## Setup Instructions
+
+### Backend
+
+1. **Edit Authentication Token**  
+   Open `app.py` and replace the `ngrok.set_auth_token` line with your personal Ngrok token:
+   ```python
+   ngrok.set_auth_token("your_ngrok_token_here")
+   ```
+
+2. **Run the Backend**  
+   Execute `app.py` in your local Python environment or on Google Colab. Once the server starts, Ngrok will generate a public URL. Note down this URL:
+   ```
+   Public URL: NgrokTunnel: "https://your-ngrok-url.ngrok-free.app" -> "http://localhost:5000"
+   ```
+
+### Frontend
+
+1. **Update API Endpoints**  
+   Modify the two API endpoints in `index-v10.html` to match the Ngrok URL from the backend:
+
+   - For the `style_transfer` endpoint:
+     ```javascript
+     const response = await fetch("https://your-ngrok-url.ngrok-free.app/style_transfer", {
+         method: "POST",
+         headers: {
+             "Content-Type": "application/json",
+         },
+         body: JSON.stringify(payload),
+     });
+     ```
+
+   - For the `generate` endpoint:
+     ```javascript
+     const response = await fetch("https://your-ngrok-url.ngrok-free.app/generate", { 
+         method: "POST", 
+         body: formData 
+     });
+     ```
+
+2. **Open Frontend**  
+   Launch `index-v10.html` in your browser to interact with the platform.
+
+---
+
+## Usage
+
+1. **Upload an Image**  
+   Choose a damaged building image and upload it through the interface.
+
+2. **Input a Description**  
+   Provide a detailed description of the building's original appearance or desired style, e.g.,  
+   ```
+   A restored Gothic cathedral with vibrant stained-glass windows.
+   ```
+
+3. **Generate Results**  
+   Click the "Generate" button to view AI-restored images.
+
+4. **Apply Style Transfer**  
+   Select a restored image and apply a style from the available options using the "Apply Style Transfer" button.
+
+---
+
+## Notes
+
+- The backend is designed to run on Google Colab for ease of access to GPU resources.
+- Each time the backend restarts, a new Ngrok URL is generated. Ensure the frontend endpoints are updated accordingly.
+- If you encounter memory issues on Colab, consider reducing the image size or the number of inference steps.
+
+---
+
+## Future Improvements
+
+1. **Expand Style Options**  
+   Add more customizable styles to cater to diverse user preferences.
+
+2. **Enhanced Model Training**  
+   Improve restoration accuracy for severely damaged structures.
+
+3. **Cloud Deployment**  
+   Host the platform on a cloud server to support a larger audience.
+
+---
+
+We hope you enjoy using **AI+BII**! For questions or feedback, feel free to reach out to the development team.
