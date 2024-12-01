@@ -294,7 +294,7 @@ def style_transfer():
 
 
 
-ngrok.set_auth_token("2ow05y0sC5WrHlyKl6k6OB6F595_7nQzvFkJd6nW1aHBQ5Wzi")
+ngrok.set_auth_token("your_token")
 public_url = ngrok.connect(5000)
 print("Public URL:", public_url)
 
